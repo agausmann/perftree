@@ -1,29 +1,123 @@
 use std::collections::BTreeMap;
+use std::env;
 use std::io::{self, BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-fn main() {
-    let mut stockfish = Stockfish::new().unwrap();
-    let sperft = stockfish
-        .perft(
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            &[],
-            6,
-        )
-        .unwrap();
+const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-    let mut script = Script::new("./perft.sh");
-    let perft = script
-        .perft(
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            &[],
-            6,
+fn main() -> io::Result<()> {
+    let input = io::stdin();
+    let input_handle = input.lock();
+    let mut input_lines = input_handle.lines();
+    let mut output = StandardStream::stdout(ColorChoice::Auto);
+
+    let mut state = State::new(env::args().nth(1).unwrap())?;
+
+    while let Some(line) = input_lines.next() {
+        let line = line?;
+        let mut words = line.split_whitespace();
+        let cmd = words.next().unwrap();
+        if cmd.is_empty() {
+            continue;
+        }
+
+        match cmd {
+            "reroot" => {
+                let fen = words.collect::<Vec<_>>().join(" ");
+                state.set_root(fen);
+            }
+            "depth" => {
+                let depth = words.next().unwrap().parse().unwrap();
+                state.depth(depth);
+            }
+            "root" => {
+                state.root();
+            }
+            "parent" => {
+                state.parent();
+            }
+            "child" => {
+                let move_ = words.next().unwrap();
+                state.child(move_);
+            }
+            "print" => {
+                state.print(&mut output)?;
+            }
+            "exit" => {
+                break;
+            }
+            other => {
+                eprintln!("unknown command {:?}", other);
+            }
+        }
+    }
+    Ok(())
+}
+
+pub struct State {
+    stockfish: Stockfish,
+    script: Script,
+    fen: String,
+    moves: Vec<String>,
+    depth: usize,
+}
+
+impl State {
+    pub fn new<S>(cmd: S) -> io::Result<State>
+    where
+        S: Into<String>,
+    {
+        Ok(State {
+            stockfish: Stockfish::new()?,
+            script: Script::new(cmd),
+            fen: INITIAL_FEN.to_string(),
+            moves: Vec::new(),
+            depth: 1,
+        })
+    }
+
+    pub fn set_root<S>(&mut self, fen: S)
+    where
+        S: Into<String>,
+    {
+        self.fen = fen.into();
+        self.moves.clear();
+    }
+
+    pub fn depth(&mut self, depth: usize) {
+        self.depth = depth;
+    }
+
+    pub fn root(&mut self) {
+        self.moves.clear();
+    }
+
+    pub fn parent(&mut self) {
+        self.moves.pop();
+    }
+
+    pub fn child<S>(&mut self, move_: S)
+    where
+        S: Into<String>,
+    {
+        self.moves.push(move_.into());
+    }
+
+    pub fn print<W>(&mut self, writer: W) -> io::Result<()>
+    where
+        W: WriteColor,
+    {
+        Diff::new(
+            &self
+                .script
+                .perft(&self.fen, &self.moves, self.depth - self.moves.len())?,
+            &self
+                .stockfish
+                .perft(&self.fen, &self.moves, self.depth - self.moves.len())?,
         )
-        .unwrap();
-    let diff = Diff::new(&perft, &sperft);
-    let mut write = StandardStream::stdout(ColorChoice::Auto);
-    diff.write_colored(&mut write).unwrap();
+        .write_colored(writer)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -96,7 +190,7 @@ impl Diff {
 }
 
 pub trait Engine {
-    fn perft(&mut self, fen: &str, moves: &[&str], depth: u32) -> io::Result<Perft>;
+    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> io::Result<Perft>;
 }
 
 pub struct Perft {
@@ -118,7 +212,7 @@ impl Script {
 }
 
 impl Engine for Script {
-    fn perft(&mut self, fen: &str, moves: &[&str], depth: u32) -> io::Result<Perft> {
+    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> io::Result<Perft> {
         let mut command = Command::new(&self.cmd);
         command.arg(depth.to_string());
         command.arg(fen);
@@ -177,7 +271,7 @@ impl Stockfish {
 }
 
 impl Engine for Stockfish {
-    fn perft(&mut self, fen: &str, moves: &[&str], depth: u32) -> io::Result<Perft> {
+    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> io::Result<Perft> {
         // send command to stockfish
         write!(self.out, "position fen {}", fen)?;
         if !moves.is_empty() {
@@ -206,6 +300,10 @@ impl Engine for Stockfish {
         self.inp.read_line(&mut buf)?;
         let mut parts = buf.trim().split(": ");
         let total_count = parts.nth(1).unwrap().parse().unwrap();
+
+        // throw away empty line
+        buf.clear();
+        self.inp.read_line(&mut buf)?;
 
         Ok(Perft {
             child_count,
