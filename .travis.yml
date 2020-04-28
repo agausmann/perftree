@@ -1,0 +1,14 @@
+language: rust
+dist: bionic
+rust:
+  - stable
+  - beta
+  - nightly
+os:
+  - linux
+  - macosx
+  - windows
+allow_failures:
+  - rust: beta
+  - rust: nightly
+fast_finish: true
