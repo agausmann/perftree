@@ -5,14 +5,23 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 fn main() {
     let mut stockfish = Stockfish::new().unwrap();
-    let perft = stockfish
+    let sperft = stockfish
         .perft(
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             &[],
-            5,
+            6,
         )
         .unwrap();
-    let diff = Diff::new(&perft, &perft);
+
+    let mut script = Script::new("./perft.sh");
+    let perft = script
+        .perft(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            &[],
+            6,
+        )
+        .unwrap();
+    let diff = Diff::new(&perft, &sperft);
     let mut write = StandardStream::stdout(ColorChoice::Auto);
     diff.write_colored(&mut write).unwrap();
 }
@@ -93,6 +102,52 @@ pub trait Engine {
 pub struct Perft {
     total_count: u128,
     child_count: BTreeMap<String, u128>,
+}
+
+pub struct Script {
+    cmd: String,
+}
+
+impl Script {
+    pub fn new<S>(cmd: S) -> Script
+    where
+        S: Into<String>,
+    {
+        Script { cmd: cmd.into() }
+    }
+}
+
+impl Engine for Script {
+    fn perft(&mut self, fen: &str, moves: &[&str], depth: u32) -> io::Result<Perft> {
+        let mut command = Command::new(&self.cmd);
+        command.arg(depth.to_string());
+        command.arg(fen);
+        if !moves.is_empty() {
+            command.arg(moves.join(" "));
+        }
+
+        let output = command.output()?.stdout;
+        let mut lines = output.lines().map(Result::unwrap);
+
+        let mut child_count = BTreeMap::new();
+        loop {
+            let line = lines.next().unwrap();
+            if line.is_empty() {
+                break;
+            }
+            let mut parts = line.split_whitespace();
+            let move_ = parts.next().unwrap().to_string();
+            let count = parts.next().unwrap().parse().unwrap();
+            child_count.insert(move_, count);
+        }
+
+        let total_count = lines.next().unwrap().parse().unwrap();
+
+        Ok(Perft {
+            child_count,
+            total_count,
+        })
+    }
 }
 
 pub struct Stockfish {
