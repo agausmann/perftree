@@ -3,8 +3,21 @@ name = "perftree"
 version = "0.1.0"
 authors = ["Adam Gausmann <agausmann@fastmail.com>"]
 edition = "2018"
+description = "A Perftree debugger for chess engines. Compare your game tree to Stockfish!"
+readme = "README.md"
+repository = "https://github.com/agausmann/perftree"
+license = "MIT"
+keywords = ["chess", "perft", "debugger", "cli"]
+categories = [
+    "command-line-utilities",
+    "development-tools",
+    "development-tools::debugging",
+    "development-tools::testing",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[badges]
+travis-ci = { repository = "agausmann/perft" }
+maintenance = { status = "passively-maintained" }
 
 [dependencies]
 termcolor = "1.1.0"
