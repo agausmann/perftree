@@ -23,13 +23,29 @@ fn main() -> io::Result<()> {
         }
 
         match cmd {
-            "reroot" => {
+            "fen" => {
                 let fen = words.collect::<Vec<_>>().join(" ");
-                state.set_root(fen);
+                if fen.is_empty() {
+                    println!("{}", state.fen);
+                } else {
+                    state.fen(fen);
+                }
+            }
+            "moves" => {
+                let moves = words.map(|s| s.to_string()).collect::<Vec<_>>();
+                if moves.is_empty() {
+                    println!("{}", state.moves.join(" "));
+                } else {
+                    state.moves(moves);
+                }
             }
             "depth" => {
-                let depth = words.next().unwrap().parse().unwrap();
-                state.depth(depth);
+                if let Some(depth) = words.next() {
+                    let depth = depth.parse().unwrap();
+                    state.depth(depth);
+                } else {
+                    println!("{}", state.depth);
+                }
             }
             "root" => {
                 state.root();
@@ -41,10 +57,10 @@ fn main() -> io::Result<()> {
                 let move_ = words.next().unwrap();
                 state.child(move_);
             }
-            "print" => {
-                state.print(&mut output)?;
+            "diff" => {
+                state.diff()?.write_colored(&mut output)?;
             }
-            "exit" => {
+            "exit" | "quit" => {
                 break;
             }
             other => {
@@ -77,12 +93,19 @@ impl State {
         })
     }
 
-    pub fn set_root<S>(&mut self, fen: S)
+    pub fn fen<S>(&mut self, fen: S)
     where
         S: Into<String>,
     {
         self.fen = fen.into();
         self.moves.clear();
+    }
+
+    pub fn moves<V>(&mut self, moves: V)
+    where
+        V: Into<Vec<String>>,
+    {
+        self.moves = moves.into();
     }
 
     pub fn depth(&mut self, depth: usize) {
@@ -104,19 +127,15 @@ impl State {
         self.moves.push(move_.into());
     }
 
-    pub fn print<W>(&mut self, writer: W) -> io::Result<()>
-    where
-        W: WriteColor,
-    {
-        Diff::new(
+    pub fn diff(&mut self) -> io::Result<Diff> {
+        Ok(Diff::new(
             &self
                 .script
                 .perft(&self.fen, &self.moves, self.depth - self.moves.len())?,
             &self
                 .stockfish
                 .perft(&self.fen, &self.moves, self.depth - self.moves.len())?,
-        )
-        .write_colored(writer)
+        ))
     }
 }
 
