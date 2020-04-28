@@ -126,8 +126,10 @@ impl Engine for Script {
             command.arg(moves.join(" "));
         }
 
-        let output = command.output()?.stdout;
-        let mut lines = output.lines().map(Result::unwrap);
+        let output = command.output()?;
+        //re-raise output from stderr
+        io::stderr().write_all(&output.stderr).unwrap();
+        let mut lines = output.stdout.lines().map(Result::unwrap);
 
         let mut child_count = BTreeMap::new();
         loop {
