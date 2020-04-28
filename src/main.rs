@@ -1,10 +1,15 @@
 use std::collections::BTreeMap;
 use std::env;
 use std::io::{self, BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{exit, Child, ChildStdin, ChildStdout, Command, Stdio};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+fn usage() -> ! {
+    eprintln!("Usage: perftree <script>");
+    exit(1);
+}
 
 fn main() -> io::Result<()> {
     let input = io::stdin();
@@ -12,15 +17,15 @@ fn main() -> io::Result<()> {
     let mut input_lines = input_handle.lines();
     let mut output = StandardStream::stdout(ColorChoice::Auto);
 
-    let mut state = State::new(env::args().nth(1).unwrap())?;
+    let mut state = State::new(env::args().nth(1).unwrap_or_else(|| usage()))?;
 
-    while let Some(line) = input_lines.next() {
-        let line = line?;
+    while let Some(line_result) = input_lines.next() {
+        let line = line_result?;
         let mut words = line.split_whitespace();
-        let cmd = words.next().unwrap();
-        if cmd.is_empty() {
-            continue;
-        }
+        let cmd = match words.next() {
+            Some(word) => word,
+            None => continue,
+        };
 
         match cmd {
             "fen" => {
@@ -41,7 +46,13 @@ fn main() -> io::Result<()> {
             }
             "depth" => {
                 if let Some(depth) = words.next() {
-                    let depth = depth.parse().unwrap();
+                    let depth = match depth.parse() {
+                        Ok(x) => x,
+                        Err(e) => {
+                            eprintln!("cannot parse given depth: {}", e);
+                            continue;
+                        }
+                    };
                     state.depth(depth);
                 } else {
                     println!("{}", state.depth);
@@ -50,16 +61,20 @@ fn main() -> io::Result<()> {
             "root" => {
                 state.root();
             }
-            "parent" => {
+            "parent" | "unmove" => {
                 state.parent();
             }
-            "child" => {
-                let move_ = words.next().unwrap();
-                state.child(move_);
+            "child" | "move" => {
+                if let Some(move_) = words.next() {
+                    state.child(move_);
+                } else {
+                    eprintln!("missing argument, expected a child move");
+                }
             }
-            "diff" => {
-                state.diff()?.write_colored(&mut output)?;
-            }
+            "diff" => match state.diff() {
+                Ok(diff) => diff.write_colored(&mut output)?,
+                Err(e) => eprintln!("cannot compute diff: {}", e),
+            },
             "exit" | "quit" => {
                 break;
             }
@@ -241,22 +256,50 @@ impl Engine for Script {
 
         let output = command.output()?;
         //re-raise output from stderr
-        io::stderr().write_all(&output.stderr).unwrap();
-        let mut lines = output.stdout.lines().map(Result::unwrap);
+        io::stderr().write_all(&output.stderr)?;
+        let mut lines = output.stdout.lines();
 
         let mut child_count = BTreeMap::new();
         loop {
-            let line = lines.next().unwrap();
+            let line = lines
+                .next()
+                .ok_or(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "unexpected eof while parsing script output",
+                ))
+                .and_then(|result| result)?;
+
             if line.is_empty() {
                 break;
             }
             let mut parts = line.split_whitespace();
-            let move_ = parts.next().unwrap().to_string();
-            let count = parts.next().unwrap().parse().unwrap();
+            let move_ = parts
+                .next()
+                .ok_or(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "unexpected end of line; expected move and count separated by spaces",
+                ))?
+                .to_string();
+            let count = parts
+                .next()
+                .ok_or(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "unexpected end of line; expected move and count separated by spaces",
+                ))?
+                .parse()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
             child_count.insert(move_, count);
         }
 
-        let total_count = lines.next().unwrap().parse().unwrap();
+        let total_count = lines
+            .next()
+            .ok_or(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "unexpected eof while parsing script output",
+            ))
+            .and_then(|result| result)?
+            .parse()
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
         Ok(Perft {
             child_count,
@@ -278,12 +321,12 @@ impl Stockfish {
             .stdout(Stdio::piped())
             .spawn()?;
 
-        let mut inp = BufReader::new(child.stdout.take().unwrap());
+        let mut inp = BufReader::new(child.stdout.take().expect("stdout not captured"));
         // consume/skip header
         let mut buf = String::new();
         inp.read_line(&mut buf)?;
 
-        let out = child.stdin.take().unwrap();
+        let out = child.stdin.take().expect("stdin not captured");
 
         Ok(Stockfish { child, inp, out })
     }
@@ -309,8 +352,21 @@ impl Engine for Stockfish {
                 break;
             }
             let mut parts = buf.trim().split(": ");
-            let move_ = parts.next().unwrap().to_string();
-            let count = parts.next().unwrap().parse().unwrap();
+            let move_ = parts
+                .next()
+                .ok_or(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "unexpected end of line",
+                ))?
+                .to_string();
+            let count = parts
+                .next()
+                .ok_or(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "unexpected end of line",
+                ))?
+                .parse()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
             child_count.insert(move_, count);
         }
 
@@ -318,7 +374,14 @@ impl Engine for Stockfish {
         buf.clear();
         self.inp.read_line(&mut buf)?;
         let mut parts = buf.trim().split(": ");
-        let total_count = parts.nth(1).unwrap().parse().unwrap();
+        let total_count = parts
+            .nth(1)
+            .ok_or(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "unexpected end of line",
+            ))?
+            .parse()
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
         // throw away empty line
         buf.clear();
