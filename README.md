@@ -32,6 +32,8 @@ cargo install perftree
 
 ## Usage
 
+### Your perft script
+
 `perftree` requires some way to invoke the `perft` function on your chess
 engine. Currently, it expects the user to provide a script, which will be
 invoked like this:
@@ -90,7 +92,44 @@ g1f3 440
 8902
 ```
 
-## Example
+### Running perftree
+
+Run `perftree` from the commandline, and pass the script path as the first
+argument:
+
+```bash
+perftree ./your-script.sh
+```
+
+`perftree` understands the following commands:
+
+- `fen [new_fen]` - Set the FEN string of the root node, and clears the move
+  list. When `new_fen` is not provided, the current FEN string will be printed
+instead.
+
+- `moves [new_moves ...]` - Set the move list. When `new_moves` is not
+  provided, the current move list will be printed instead.
+
+- `depth [new_depth]` - Set the max depth for `perft`. When `new_depth` is not
+  provided, the current depth will be printed instead.
+
+- `root` - Clears the move list, effectively changing to the root node of the
+  game tree.
+
+- `child|move <move>` - Pushes the given move onto the move list, effectively
+  changing to the child node identified by the given move in the current state.
+
+- `parent|unmove` - Pops a move from the move list, effectively changing to the
+  parent node of the current state.
+
+- `diff` - Calculates and outputs a diff of the `perft` results for the current
+  node. Your results will be on the left, and Stockfish will be on the right.
+A missing number means that the move did not exist in the output from the
+corresponding engine.
+
+- `exit|quit` - Exits the program.
+
+### Example
 
 [![asciicast](https://asciinema.org/a/rWP6zJFUA3ZldASxfHWv3iL5z.svg)](https://asciinema.org/a/rWP6zJFUA3ZldASxfHWv3iL5z)
 
