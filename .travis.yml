@@ -1,86 +1,14 @@
 language: rust
-
-stages:
-  - name: test
-  - name: deploy
-    if: tag =~ ^v
-
-_platforms:
-  linux: &linux
-    os: linux
-    env: PLATFORM=linux TARGET=x86_64-unknown-linux-musl BIN=perftree
-  osx: &osx
-    os: osx
-    env: PLATFORM=macosx TARGET=x86_64-apple-darwin BIN=perftree
-  windows: &windows
-    os: windows
-    env: PLATFORM=windows TARGET=x86_64-pc-windows-gnu BIN=perftree.exe
-
-_tasks:
-  compile: &compile
-    stage: test
-    script:
-      - cargo build --target $TARGET
-
-  test: &test
-    stage: test
-    script:
-      - cargo test --target $TARGET
-
-  release: &release
-    stage: deploy
-    before_install:
-      - sudo apt-get update
-      - sudo apt-get -y install zip
-    script:
-      - cargo build --release --target $TARGET
-      - zip -j perftree-$PLATFORM.zip target/$TARGET/release/$BIN
-    deploy:
-      provider: releases
-      file: perftree-$PLATFORM.zip
-      token:
-        secure: XpWG4aVhPtbnaWZdLi3N8DEAccZn+7gZ5FZ+A17uSSHasiKl30UING9UgGkw9aBhxytvWdjGeZgefWhKBx62H3CeM1DgNO49Gi6Mro+5evdgvAo6wYXB1qDQWavkLKYwrJeas5sk3ppffMPVdsowB+9OKdmdr9hKROJSCYKcCkXg5mSwsNHpICspscSkMY5yBV/O4LEUUHigSAk7LBqJPjhHKYL6V/P/qJGiV6gvnYlfyGtIJlSC3m67+X3IocL4zO0SvnErKFA85asQbXrPgcrOzISs+09YvBsqmJboIQhkSSVsrFE4dTpVQ8oFBoR85Ot7jTKUfJrlsnN/SB93uklo1nnlEWgauQe9UwKBfNxK2CGkofqrQ78GQOC79WNUAQHxs012o6s7aDGJQtJA6DRGYafK64Yu9siskyrLnHFkFeC0aptxKKBl7n/hZQaeLLqY9h53v9PKMnP69ZmemftvzdPaFh1YkDv0YTTQ+jnUnfNqZIMJbXUiSK0BloBg1b4MeJlkpl+KlpZAizkKotWVxrfCEwXxcWR1wfdSbXEI51zjqg2tNBLvXEZM614uK/w9UhDsHI6EXnJXaSX8dIilofEl9jBnLXcAEWoST74m/6D6kBmZz/ZpESIjPjBFn9b8qARwTDli1TQHFPh+gkMHaqFi8AEiAdHf0V/49zk=
-      edge: true
-
-  cargo-publish: &cargo-publish
-    stage: deploy
-    script: skip
-    deploy:
-      provider: cargo
-      token:
-        secure: QbYfPf0mHbJ3tXVWtkNsjaubOpPpamLhVSxGKAIKmKWfelwocZ7zpOL+YAyXZL5zTveETME07MoPKtC0UJwnGkcjKV+/bz1laho1/10FBmkIBL26xOWQJm+EUcHpJsXJqjeSZQ7+qlIrhve80hmFm8egckM7N8DkJ9CMC6QFMt6qWaSb6qeO3WY+ugl/3SOjC7VROgLMvPFBv4HYHOUYk/+esn1daNP2MYtafIp+rBsJ/XntaNsTyMRxOFWsE6+JedOW+k/Ut0kjWcI9ms30BrYfT+1G7JsUChF4fS7Hym8vt87LwOgm2TqUjxLLVkAqwj+EwSPV8c1TAxoRYbFxVE4hcMuREiB6nDFH90JU6huhidH7y9CBKK/c2dmSzIAbGaYGWjEp8kBgY5nmV3BtbWcA+/SBYkr9XoAk5l8sTL3PyNRHyEXr6iKg5cbEr4Gu/huxiYU5iRfYm2Hk710uQeQGnmYx41ss60yGUrIBgo9TqwfBVuJ+HXxsjGerYJ0U8VY1g0rxfcRP1VbzL9iXwOPq915LLIdmVoha6WiMd/53T2V9zMQ531v5zhz/DrnHtSNdWRjsAWlHOCwDSII6rNitNjQGpABJdkP5i/pY4CXbGlM6feJ4lKmF+erMEAOE1Miojdz9J7FBa3a8sICj/wMyrVCQwBSRQLDUkDEZcA8=
-      edge: true
-
-install:
-  - rustup target add $TARGET
-
-jobs:
-  include:
-    - <<: *compile
-      <<: *linux
-
-    - <<: *compile
-      <<: *osx
-
-    - <<: *compile
-      <<: *windows
-
-    - <<: *test
-      <<: *linux
-
-    - <<: *test
-      <<: *osx
-
-    - <<: *test
-      <<: *windows
-
-    - <<: *release
-      <<: *linux
-
-    - <<: *release
-      <<: *osx
-
-    - <<: *release
-      <<: *windows
-
-    - <<: *cargo-publish
+dist: bionic
+rust:
+  - stable
+  - beta
+  - nightly
+os:
+  - linux
+  - macosx
+  - windows
+allow_failures:
+  - rust: beta
+  - rust: nightly
+fast_finish: true
