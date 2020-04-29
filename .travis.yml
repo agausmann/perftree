@@ -8,13 +8,13 @@ stages:
 _platforms:
   linux: &linux
     os: linux
-    env: TARGET=x86_64-unknown-linux-musl BIN=perftree
+    env: PLATFORM=linux TARGET=x86_64-unknown-linux-musl BIN=perftree
   osx: &osx
     os: osx
-    env: TARGET=x86_64-apple-darwin
+    env: PLATFORM=macosx TARGET=x86_64-apple-darwin BIN=perftree
   windows: &windows
     os: windows
-    env: TARGET=x86_64-pc-windows-gnu BIN=perftree.exe
+    env: PLATFORM=windows TARGET=x86_64-pc-windows-gnu BIN=perftree.exe
 
 _tasks:
   compile: &compile
@@ -29,13 +29,18 @@ _tasks:
 
   release: &release
     stage: deploy
+    before_install:
+      - sudo apt-get update
+      - sudo apt-get -y install zip
     script:
       - cargo build --release --target $TARGET
+      - zip -j perftree-$PLATFORM.zip target/$TARGET/release/$BIN
     deploy:
       provider: releases
-      edge: true
+      file: perftree-$PLATFORM.zip
       token:
         secure: XpWG4aVhPtbnaWZdLi3N8DEAccZn+7gZ5FZ+A17uSSHasiKl30UING9UgGkw9aBhxytvWdjGeZgefWhKBx62H3CeM1DgNO49Gi6Mro+5evdgvAo6wYXB1qDQWavkLKYwrJeas5sk3ppffMPVdsowB+9OKdmdr9hKROJSCYKcCkXg5mSwsNHpICspscSkMY5yBV/O4LEUUHigSAk7LBqJPjhHKYL6V/P/qJGiV6gvnYlfyGtIJlSC3m67+X3IocL4zO0SvnErKFA85asQbXrPgcrOzISs+09YvBsqmJboIQhkSSVsrFE4dTpVQ8oFBoR85Ot7jTKUfJrlsnN/SB93uklo1nnlEWgauQe9UwKBfNxK2CGkofqrQ78GQOC79WNUAQHxs012o6s7aDGJQtJA6DRGYafK64Yu9siskyrLnHFkFeC0aptxKKBl7n/hZQaeLLqY9h53v9PKMnP69ZmemftvzdPaFh1YkDv0YTTQ+jnUnfNqZIMJbXUiSK0BloBg1b4MeJlkpl+KlpZAizkKotWVxrfCEwXxcWR1wfdSbXEI51zjqg2tNBLvXEZM614uK/w9UhDsHI6EXnJXaSX8dIilofEl9jBnLXcAEWoST74m/6D6kBmZz/ZpESIjPjBFn9b8qARwTDli1TQHFPh+gkMHaqFi8AEiAdHf0V/49zk=
+      edge: true
 
   cargo-publish: &cargo-publish
     stage: deploy
