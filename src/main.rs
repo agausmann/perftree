@@ -263,10 +263,12 @@ impl Engine for Script {
         loop {
             let line = lines
                 .next()
-                .ok_or(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "unexpected eof while parsing script output",
-                ))
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "unexpected eof while parsing script output",
+                    )
+                })
                 .and_then(|result| result)?;
 
             if line.is_empty() {
@@ -275,17 +277,21 @@ impl Engine for Script {
             let mut parts = line.split_whitespace();
             let move_ = parts
                 .next()
-                .ok_or(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "unexpected end of line; expected move and count separated by spaces",
-                ))?
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "unexpected end of line; expected move and count separated by spaces",
+                    )
+                })?
                 .to_string();
             let count = parts
                 .next()
-                .ok_or(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "unexpected end of line; expected move and count separated by spaces",
-                ))?
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "unexpected end of line; expected move and count separated by spaces",
+                    )
+                })?
                 .parse()
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
             child_count.insert(move_, count);
@@ -293,10 +299,12 @@ impl Engine for Script {
 
         let total_count = lines
             .next()
-            .ok_or(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "unexpected eof while parsing script output",
-            ))
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "unexpected eof while parsing script output",
+                )
+            })
             .and_then(|result| result)?
             .parse()
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
@@ -354,17 +362,15 @@ impl Engine for Stockfish {
             let mut parts = buf.trim().split(": ");
             let move_ = parts
                 .next()
-                .ok_or(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "unexpected end of line",
-                ))?
+                .ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidInput, "unexpected end of line")
+                })?
                 .to_string();
             let count = parts
                 .next()
-                .ok_or(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "unexpected end of line",
-                ))?
+                .ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidInput, "unexpected end of line")
+                })?
                 .parse()
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
             child_count.insert(move_, count);
@@ -376,10 +382,7 @@ impl Engine for Stockfish {
         let mut parts = buf.trim().split(": ");
         let total_count = parts
             .nth(1)
-            .ok_or(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "unexpected end of line",
-            ))?
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "unexpected end of line"))?
             .parse()
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
