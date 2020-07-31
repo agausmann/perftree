@@ -182,11 +182,11 @@ impl Diff {
         let mut min_width = 0;
         for &(lhs, rhs) in self.child_count.values() {
             if let Some(lhs) = lhs {
-                let digits = (lhs as f64).log10().ceil() as usize;
+                let digits = (lhs as f64).log10().ceil().max(0.0) as usize;
                 min_width = min_width.max(digits);
             }
             if let Some(rhs) = rhs {
-                let digits = (rhs as f64).log10().ceil() as usize;
+                let digits = (rhs as f64).log10().ceil().max(0.0) as usize;
                 min_width = min_width.max(digits);
             }
         }
