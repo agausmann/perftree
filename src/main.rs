@@ -11,16 +11,42 @@ fn usage() -> ! {
     exit(1);
 }
 
+struct Prompt<R> {
+    lines: std::io::Lines<R>,
+}
+
+impl<R> Prompt<R>
+where
+    R: BufRead,
+{
+    fn new(buf_read: R) -> Self {
+        Self {
+            lines: buf_read.lines(),
+        }
+    }
+
+    fn prompt(&mut self, ps: &str) -> io::Result<Option<String>> {
+        if atty::is(atty::Stream::Stdin) {
+            if atty::is(atty::Stream::Stdout) {
+                print!("{}", ps);
+                io::stdout().flush()?;
+            } else if atty::is(atty::Stream::Stderr) {
+                eprint!("{}", ps);
+                io::stderr().flush()?;
+            }
+        }
+        self.lines.next().transpose()
+    }
+}
+
 fn main() -> io::Result<()> {
     let input = io::stdin();
-    let input_handle = input.lock();
-    let mut input_lines = input_handle.lines();
+    let mut prompt = Prompt::new(input.lock());
     let mut output = StandardStream::stdout(ColorChoice::Auto);
 
     let mut state = State::new(env::args().nth(1).unwrap_or_else(|| usage()))?;
 
-    while let Some(line_result) = input_lines.next() {
-        let line = line_result?;
+    while let Some(line) = prompt.prompt("> ")? {
         let mut words = line.split_whitespace();
         let cmd = match words.next() {
             Some(word) => word,

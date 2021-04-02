@@ -20,4 +20,5 @@ travis-ci = { repository = "agausmann/perft" }
 maintenance = { status = "passively-maintained" }
 
 [dependencies]
-termcolor = "1.1.0"
+atty = "0.2"
+termcolor = "1.1"
