@@ -1,116 +1,8 @@
 use std::collections::BTreeMap;
-use std::env;
 use std::io::{self, BufRead, BufReader, Write};
-use std::process::{exit, Child, ChildStdin, ChildStdout, Command, Stdio};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-fn usage() -> ! {
-    eprintln!("Usage: perftree <script>");
-    exit(1);
-}
-
-struct Prompt<R> {
-    lines: std::io::Lines<R>,
-}
-
-impl<R> Prompt<R>
-where
-    R: BufRead,
-{
-    fn new(buf_read: R) -> Self {
-        Self {
-            lines: buf_read.lines(),
-        }
-    }
-
-    fn prompt(&mut self, ps: &str) -> io::Result<Option<String>> {
-        if atty::is(atty::Stream::Stdin) {
-            if atty::is(atty::Stream::Stdout) {
-                print!("{}", ps);
-                io::stdout().flush()?;
-            } else if atty::is(atty::Stream::Stderr) {
-                eprint!("{}", ps);
-                io::stderr().flush()?;
-            }
-        }
-        self.lines.next().transpose()
-    }
-}
-
-fn main() -> io::Result<()> {
-    let input = io::stdin();
-    let mut prompt = Prompt::new(input.lock());
-    let mut output = StandardStream::stdout(ColorChoice::Auto);
-
-    let mut state = State::new(env::args().nth(1).unwrap_or_else(|| usage()))?;
-
-    while let Some(line) = prompt.prompt("> ")? {
-        let mut words = line.split_whitespace();
-        let cmd = match words.next() {
-            Some(word) => word,
-            None => continue,
-        };
-
-        match cmd {
-            "fen" => {
-                let fen = words.collect::<Vec<_>>().join(" ");
-                if fen.is_empty() {
-                    println!("{}", state.fen);
-                } else {
-                    state.fen(fen);
-                }
-            }
-            "moves" => {
-                let moves = words.map(|s| s.to_string()).collect::<Vec<_>>();
-                if moves.is_empty() {
-                    println!("{}", state.moves.join(" "));
-                } else {
-                    state.moves(moves);
-                }
-            }
-            "depth" => {
-                if let Some(depth) = words.next() {
-                    let depth = match depth.parse() {
-                        Ok(x) => x,
-                        Err(e) => {
-                            eprintln!("cannot parse given depth: {}", e);
-                            continue;
-                        }
-                    };
-                    state.depth(depth);
-                } else {
-                    println!("{}", state.depth);
-                }
-            }
-            "root" => {
-                state.root();
-            }
-            "parent" | "unmove" => {
-                state.parent();
-            }
-            "child" | "move" => {
-                if let Some(move_) = words.next() {
-                    state.child(move_);
-                } else {
-                    eprintln!("missing argument, expected a child move");
-                }
-            }
-            "diff" => match state.diff() {
-                Ok(diff) => diff.write_colored(&mut output)?,
-                Err(e) => eprintln!("cannot compute diff: {}", e),
-            },
-            "exit" | "quit" => {
-                break;
-            }
-            other => {
-                eprintln!("unknown command {:?}", other);
-            }
-        }
-    }
-    Ok(())
-}
 
 pub struct State {
     stockfish: Stockfish,
@@ -134,7 +26,11 @@ impl State {
         })
     }
 
-    pub fn fen<S>(&mut self, fen: S)
+    pub fn fen(&self) -> &str {
+        &self.fen
+    }
+
+    pub fn set_fen<S>(&mut self, fen: S)
     where
         S: Into<String>,
     {
@@ -142,26 +38,34 @@ impl State {
         self.moves.clear();
     }
 
-    pub fn moves<V>(&mut self, moves: V)
+    pub fn moves(&self) -> &[String] {
+        &self.moves
+    }
+
+    pub fn set_moves<V>(&mut self, moves: V)
     where
         V: Into<Vec<String>>,
     {
         self.moves = moves.into();
     }
 
-    pub fn depth(&mut self, depth: usize) {
+    pub fn depth(&self) -> usize {
+        self.depth
+    }
+
+    pub fn set_depth(&mut self, depth: usize) {
         self.depth = depth;
     }
 
-    pub fn root(&mut self) {
+    pub fn goto_root(&mut self) {
         self.moves.clear();
     }
 
-    pub fn parent(&mut self) {
+    pub fn goto_parent(&mut self) {
         self.moves.pop();
     }
 
-    pub fn child<S>(&mut self, move_: S)
+    pub fn goto_child<S>(&mut self, move_: S)
     where
         S: Into<String>,
     {
@@ -201,51 +105,12 @@ impl Diff {
         }
     }
 
-    pub fn write_colored<W>(&self, mut write: W) -> io::Result<()>
-    where
-        W: WriteColor,
-    {
-        let mut min_width = 0;
-        for &(lhs, rhs) in self.child_count.values() {
-            if let Some(lhs) = lhs {
-                let digits = (lhs as f64).log10().ceil().max(0.0) as usize;
-                min_width = min_width.max(digits);
-            }
-            if let Some(rhs) = rhs {
-                let digits = (rhs as f64).log10().ceil().max(0.0) as usize;
-                min_width = min_width.max(digits);
-            }
-        }
+    pub fn total_count(&self) -> (u128, u128) {
+        self.total_count
+    }
 
-        for (move_, &(lhs, rhs)) in &self.child_count {
-            if lhs != rhs {
-                write.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
-            }
-            write!(write, "{}", move_)?;
-            if let Some(lhs) = lhs {
-                write!(write, "  {:>width$}", lhs, width = min_width)?;
-            } else {
-                write!(write, "  {:>width$}", "", width = min_width)?;
-            }
-            if let Some(rhs) = rhs {
-                write!(write, "  {:>width$}", rhs, width = min_width)?;
-            } else {
-                write!(write, "  {:>width$}", "", width = min_width)?;
-            }
-            writeln!(write)?;
-            write.reset()?;
-        }
-
-        writeln!(write)?;
-        let (lhs, rhs) = self.total_count;
-        if lhs != rhs {
-            write.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
-        }
-        write!(write, "total  {}  {}", lhs, rhs)?;
-        write.reset()?;
-        writeln!(write)?;
-
-        Ok(())
+    pub fn child_count(&self) -> &BTreeMap<String, (Option<u128>, Option<u128>)> {
+        &self.child_count
     }
 }
 
@@ -256,6 +121,23 @@ pub trait Engine {
 pub struct Perft {
     total_count: u128,
     child_count: BTreeMap<String, u128>,
+}
+
+impl Perft {
+    pub fn new(total_count: u128, child_count: BTreeMap<String, u128>) -> Perft {
+        Perft {
+            total_count,
+            child_count,
+        }
+    }
+
+    pub fn total_count(&self) -> u128 {
+        self.total_count
+    }
+
+    pub fn child_count(&self) -> &BTreeMap<String, u128> {
+        &self.child_count
+    }
 }
 
 pub struct Script {

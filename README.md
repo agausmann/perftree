@@ -24,10 +24,11 @@ community, as a trusted source of perft results. Download and install
 [Stockfish][stockfish] if you haven't already, and make sure you can run it
 from the command line with the command `stockfish`.
 
-Install the `perftree` program from the crates.io repository with `cargo`:
+Install the `perftree` CLI application from the crates.io repository with
+`cargo`:
 
 ```
-cargo install perftree
+cargo install perftree-cli
 ```
 
 ## Usage

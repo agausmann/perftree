@@ -1,0 +1,15 @@
+[package]
+name = "perftree"
+version = "0.3.0"
+authors = ["Adam Gausmann <agausmann@fastmail.com>"]
+edition = "2018"
+description = "A Perftree debugger for chess engines. Compare your game tree to Stockfish!"
+readme = "README.md"
+repository = "https://github.com/agausmann/perftree"
+license = "MIT"
+keywords = ["chess", "perft", "debugger"]
+categories = [
+    "development-tools",
+    "development-tools::debugging",
+    "development-tools::testing",
+]
