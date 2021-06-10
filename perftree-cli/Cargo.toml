@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["Adam Gausmann <agausmann@fastmail.com>"]
 edition = "2018"
 description = "Command-line interface for perftree"
-readme = "README.md"
 license = "MIT"
 repository = "https://github.com/agausmann/perftree"
 keywords = ["chess", "perft", "debugger", "cli"]
