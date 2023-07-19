@@ -102,6 +102,12 @@ fn main() -> io::Result<()> {
             "exit" | "quit" => {
                 break;
             }
+            "chess960" => {
+                state.set_chess960(true);
+            }
+            "nochess960" => {
+                state.set_chess960(false);
+            }
             other => {
                 eprintln!("unknown command {:?}", other);
             }

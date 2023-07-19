@@ -82,6 +82,10 @@ impl State {
                 .perft(&self.fen, &self.moves, self.depth - self.moves.len())?,
         ))
     }
+
+    pub fn set_chess960(&mut self, chess960: bool) {
+        self.stockfish.chess960 = chess960;
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -228,6 +232,7 @@ pub struct Stockfish {
     child: Child,
     inp: BufReader<ChildStdout>,
     out: ChildStdin,
+    chess960: bool,
 }
 
 impl Stockfish {
@@ -244,12 +249,23 @@ impl Stockfish {
 
         let out = child.stdin.take().expect("stdin not captured");
 
-        Ok(Stockfish { child, inp, out })
+        Ok(Stockfish {
+            child,
+            inp,
+            out,
+            chess960: false,
+        })
     }
 }
 
 impl Engine for Stockfish {
     fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> io::Result<Perft> {
+        // Enable/disable Chess960
+        write!(
+            self.out,
+            "setoption name UCI_Chess960 value {}",
+            self.chess960
+        )?;
         // send command to stockfish
         write!(self.out, "position fen {}", fen)?;
         if !moves.is_empty() {
