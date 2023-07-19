@@ -102,11 +102,19 @@ fn main() -> io::Result<()> {
             "exit" | "quit" => {
                 break;
             }
-            "chess960" => {
-                state.set_chess960(true);
-            }
-            "nochess960" => {
-                state.set_chess960(false);
+            "chess960" | "frc" => {
+                if let Some(chess960) = words.next() {
+                    match chess960.parse() {
+                        Ok(chess960) => {
+                            state.set_chess960(chess960)?;
+                        }
+                        Err(e) => {
+                            eprintln!("cannot parse given bool: {}", e);
+                        }
+                    }
+                } else {
+                    eprintln!("missing argument, expected true or false");
+                }
             }
             other => {
                 eprintln!("unknown command {:?}", other);
