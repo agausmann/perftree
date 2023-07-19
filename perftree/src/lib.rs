@@ -263,7 +263,7 @@ impl Engine for Stockfish {
         // Enable/disable Chess960
         write!(
             self.out,
-            "setoption name UCI_Chess960 value {}",
+            "setoption name UCI_Chess960 value {}\n",
             self.chess960
         )?;
         // send command to stockfish
