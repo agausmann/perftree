@@ -50,7 +50,7 @@ where
 - `$fen` is the [Forsyth-Edwards Notation][fen] string of a "base" position
   (set by the `fen` command)
 
-- `$moves` is a space-separated list of moves starting from the base position,
+- `$moves` is a space-separated sequence of moves starting from the base position,
   as set by the `move`/`unmove`/`moves` commands.  
   The moves are formatted in UCI notation: `$source$target$promotion`, where castling
   is encoded as the king's move during the castle. Examples: `e2e4`, `e1g1`, `a7b8Q`.  
