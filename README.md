@@ -35,9 +35,9 @@ cargo install perftree-cli
 
 ### Your perft script
 
-`perftree` requires some way to invoke the `perft` function on your chess
-engine. Currently, it expects the user to provide a script, which will be
-invoked like this:
+`perftree` requires some way to execute the `perft` function on your chess
+engine. Currently, it uses an executable file (e.g. a script) provided by the
+user, which will be invoked like this:
 
 ```
 ./your-perft.sh "$depth" "$fen" "$moves"
@@ -45,24 +45,33 @@ invoked like this:
 
 where
 
-- `$depth` is the maximum depth of the evaluation,
+- `$depth` is the depth parameter of the perft function.
 
-- `$fen` is the [Forsyth-Edwards Notation][fen] string of some base position,
+- `$fen` is the [Forsyth-Edwards Notation][fen] string of a "base" position
+  (set by the `fen` command)
 
-- `$moves` is an optional space-separated list of moves from the base position
-  to the position to be evaluated, where each move is formatted as
-`$source$target$promotion`, e.g. `e2e4` or `a7b8Q`.
+- `$moves` is a space-separated list of moves starting from the base position,
+  as set by the `move`/`unmove`/`moves` commands.  
+  The moves are formatted in UCI notation: `$source$target$promotion`, where castling
+  is encoded as the king's move during the castle. Examples: `e2e4`, `e1g1`, `a7b8Q`.  
+  If a `$moves` argument is not provided, then no moves have to be applied.
 
-The script is expected to output the results of the perft function to standard
-output, with the following format:
+Your engine should apply the `$moves` starting from the position specified by `$fen`.
+The position reached after applying `$moves` is referred to as the "current" position.
+At that position, it should execute perft with the given `$depth`. A depth of 0 would
+just count the current position, so a total of 1. A depth of 1 counts all moves available
+at this position, depth 2 counts all moves available after each "depth-1" move, and so on.
 
-- For each move available at the current position, print the move and the
-  number of nodes at the given depth which are an ancestor of that move,
-separated by whitespace.
+Then, output the results as follows:
+
+- For each move that is possible at the current position, print the move in UCI notation,
+followed by a space, then the number of states counted by perft that start with that move.
+(This is each recursive case from the current position; i.e. for each available move at the
+current position, make the move and call perft with a depth of `$depth - 1`)
 
 - After the list of moves, print a blank line.
 
-- Finally, print the total node count on its own line.
+- Finally, print the total perft result for the current position on its own line.
 
 For example, this is what the depth-3 perft of the starting position should look
 like:
@@ -95,8 +104,8 @@ g1f3 440
 
 ### Running perftree
 
-Run `perftree` from the commandline, and pass the script path as the first
-argument:
+Run `perftree` from the commandline, and pass the path to your perft executable
+as the first argument:
 
 ```bash
 perftree ./your-script.sh
