@@ -267,6 +267,11 @@ impl Engine for Stockfish {
             if buf.trim().is_empty() {
                 break;
             }
+
+            if buf.starts_with("info") {
+                continue;
+            }
+
             let mut parts = buf.trim().split(": ");
             let move_ = parts
                 .next()
