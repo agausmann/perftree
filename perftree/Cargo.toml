@@ -12,3 +12,6 @@ categories = [
     "development-tools::debugging",
     "development-tools::testing",
 ]
+
+[dependencies]
+anyhow = "1.0.97"

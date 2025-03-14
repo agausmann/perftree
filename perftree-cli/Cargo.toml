@@ -19,3 +19,4 @@ categories = [
 perftree = { version = "0.3.0", path = "../perftree" }
 atty = "0.2"
 termcolor = "1.1"
+anyhow = "1.0.97"

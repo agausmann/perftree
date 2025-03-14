@@ -37,7 +37,7 @@ where
     }
 }
 
-fn main() -> io::Result<()> {
+fn main() -> anyhow::Result<()> {
     let input = io::stdin();
     let mut prompt = Prompt::new(input.lock());
     let mut output = StandardStream::stdout(ColorChoice::Auto);
@@ -97,7 +97,7 @@ fn main() -> io::Result<()> {
             }
             "diff" => match state.diff() {
                 Ok(diff) => write_colored(&diff, &mut output)?,
-                Err(e) => eprintln!("cannot compute diff: {}", e),
+                Err(e) => eprintln!("cannot compute diff: {:#}", e),
             },
             "exit" | "quit" => {
                 break;

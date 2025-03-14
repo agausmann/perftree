@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::io::{self, BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
+use anyhow::Context;
+
 const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 pub struct State {
@@ -13,12 +15,12 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<S>(cmd: S) -> io::Result<State>
+    pub fn new<S>(cmd: S) -> anyhow::Result<State>
     where
         S: Into<String>,
     {
         Ok(State {
-            stockfish: Stockfish::new()?,
+            stockfish: Stockfish::new().context("failed to initialize stockfish")?,
             script: Script::new(cmd),
             fen: INITIAL_FEN.to_string(),
             moves: Vec::new(),
@@ -72,14 +74,16 @@ impl State {
         self.moves.push(move_.into());
     }
 
-    pub fn diff(&mut self) -> io::Result<Diff> {
+    pub fn diff(&mut self) -> anyhow::Result<Diff> {
         Ok(Diff::new(
             &self
                 .script
-                .perft(&self.fen, &self.moves, self.depth - self.moves.len())?,
+                .perft(&self.fen, &self.moves, self.depth - self.moves.len())
+                .context("failed to execute user script")?,
             &self
                 .stockfish
-                .perft(&self.fen, &self.moves, self.depth - self.moves.len())?,
+                .perft(&self.fen, &self.moves, self.depth - self.moves.len())
+                .context("failed to execute Stockfish perft")?,
         ))
     }
 }
@@ -115,7 +119,7 @@ impl Diff {
 }
 
 pub trait Engine {
-    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> io::Result<Perft>;
+    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> anyhow::Result<Perft>;
 }
 
 pub struct Perft {
@@ -154,7 +158,7 @@ impl Script {
 }
 
 impl Engine for Script {
-    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> io::Result<Perft> {
+    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> anyhow::Result<Perft> {
         let mut command = Command::new(&self.cmd);
         command.arg(depth.to_string());
         command.arg(fen);
@@ -249,7 +253,7 @@ impl Stockfish {
 }
 
 impl Engine for Stockfish {
-    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> io::Result<Perft> {
+    fn perft(&mut self, fen: &str, moves: &[String], depth: usize) -> anyhow::Result<Perft> {
         // send command to stockfish
         write!(self.out, "position fen {}", fen)?;
         if !moves.is_empty() {
