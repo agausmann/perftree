@@ -36,14 +36,14 @@ checksum = "56d855069fafbb9b344c0f962150cd2c1187975cb1c22c1522c240d8c4986714"
 
 [[package]]
 name = "perftree"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
 ]
 
 [[package]]
 name = "perftree-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "atty",

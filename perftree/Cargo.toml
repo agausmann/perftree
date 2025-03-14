@@ -1,6 +1,6 @@
 [package]
 name = "perftree"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Adam Gausmann <agausmann@fastmail.com>"]
 edition = "2018"
 description = "A Perftree debugger for chess engines. Compare your game tree to Stockfish!"
