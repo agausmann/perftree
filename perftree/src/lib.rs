@@ -86,6 +86,13 @@ impl State {
                 .context("failed to execute Stockfish perft")?,
         ))
     }
+
+    pub fn set_chess960(&mut self, chess960: bool) -> io::Result<()> {
+        write!(
+            self.stockfish.out,
+            "setoption name UCI_Chess960 value {chess960}\n",
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
