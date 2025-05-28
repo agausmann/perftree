@@ -1,5 +1,11 @@
 # perftree
 
+![maintenance-status](https://img.shields.io/badge/maintenance-passively--maintained-yellowgreen.svg)
+
+> [!NOTE]
+> **Passively-maintained.** I still try to respond to issues and PRs,
+> but I do not plan on developing or merging new features.
+
 A `perft` debugger. Compare your chess engine to Stockfish and quickly find
 discrepancies in move generation.
 
